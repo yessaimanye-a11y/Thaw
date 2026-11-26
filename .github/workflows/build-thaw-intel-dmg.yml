@@ -1,0 +1,64 @@
+name: Build Thaw Intel DMG
+
+# Builds Thaw 2 (the branch that supports Intel-compatible macOS 15/26) as an x86_64 DMG.
+# Thaw 3 (macOS 27, Apple silicon only, closed prk-bin/ThawUI packages) cannot be built for Intel.
+#
+# Usage: put this file in .github/workflows/ of YOUR GitHub repo, then
+# Actions -> "Build Thaw Intel DMG" -> Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Repo to build"
+        default: "thaw-app/Thaw"
+      ref:
+        description: "Branch or tag (Thaw 2 line)"
+        default: "legacy/thaw-2"
+
+jobs:
+  build:
+    # Intel macOS runner. If GitHub retires this label, use another *-intel label.
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.ref }}
+
+      - name: Show toolchain
+        run: |
+          uname -m
+          xcodebuild -version
+          xcodebuild -list -project Thaw.xcodeproj
+
+      - name: Build (x86_64, unsigned)
+        env:
+          THAW_SKIP_XCODE_LINT: "1"
+        run: |
+          xcodebuild \
+            -project Thaw.xcodeproj \
+            -scheme Thaw \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath build \
+            ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Ad-hoc sign and verify architecture
+        run: |
+          APP="build/Build/Products/Release/Thaw.app"
+          codesign --force --deep --sign - "$APP"
+          lipo -archs "$APP/Contents/MacOS/Thaw"
+
+      - name: Create DMG
+        run: |
+          mkdir dmg && cp -R build/Build/Products/Release/Thaw.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Thaw -srcfolder dmg -ov -format UDZO Thaw-intel.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Thaw-intel-dmg
+          path: Thaw-intel.dmg
