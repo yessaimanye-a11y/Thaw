@@ -18,8 +18,9 @@ on:
 
 jobs:
   build:
-    # Intel macOS runner. If GitHub retires this label, use another *-intel label.
-    runs-on: macos-15-intel
+    # Apple silicon runner with Xcode 26; cross-builds an x86_64 (Intel) binary.
+    # The Intel runners only have Xcode 16.4, which cannot open this project.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +38,7 @@ jobs:
 
       - name: Show toolchain
         run: |
-          uname -m
+          uname -m   # arm64 here is expected; the app itself is built for x86_64
           xcodebuild -version
           xcodebuild -list -project Thaw.xcodeproj
 
