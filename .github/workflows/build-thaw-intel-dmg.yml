@@ -26,6 +26,15 @@ jobs:
           repository: ${{ inputs.repo }}
           ref: ${{ inputs.ref }}
 
+      - name: Select newest installed Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          # Pick the highest version number (ignores beta/RC suffix ordering issues by preferring plain versions)
+          NEWEST=$(ls -d /Applications/Xcode_*.app | grep -v -i -E "beta|rc|preview" | sed -E 's#.*/Xcode_([0-9.]+)\.app#\1 &#' | sort -V | tail -1 | cut -d' ' -f2-)
+          echo "Using $NEWEST"
+          sudo xcode-select -s "$NEWEST/Contents/Developer"
+          sudo xcodebuild -runFirstLaunch || true
+
       - name: Show toolchain
         run: |
           uname -m
